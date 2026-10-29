@@ -44,6 +44,19 @@ h1,h2,h3 {color:#302333!important;letter-spacing:-.04em;}
 [data-testid="stTextInput"] input,[data-testid="stTextArea"] textarea,[data-baseweb="select"]>div {background:#ffffff!important;color:#302333!important;-webkit-text-fill-color:#302333!important;border-color:#e8d5e0!important;}
 [data-testid="stTextInput"] input::placeholder,[data-testid="stTextArea"] textarea::placeholder {color:#847487!important;opacity:1;}
 [data-testid="stAlert"] p {color:inherit!important;}
+ /* Consistent readable text for Streamlit Cloud light UI; preserve alert colours and pink primary controls. */
+ [data-testid="stAppViewContainer"] {background:#fbf9fb!important;color:#302333!important;}
+ [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p,
+ [data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p,
+ [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p,
+ [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p,
+ [data-testid="stDataFrame"] {color:#302333!important;}
+ [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] span {color:#45243b!important;}
+ [data-testid="stTabs"] [role="tab"] {color:#594357!important;}
+ [data-testid="stTabs"] [role="tab"][aria-selected="true"] {color:#a62665!important;}
+ .stApp button[kind="primary"], .stApp button[data-testid="stBaseButton-primary"] {background:#bf3279!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+ .stApp button[kind="primary"] *, .stApp button[data-testid="stBaseButton-primary"] * {color:#fff!important;-webkit-text-fill-color:#fff!important;}
+
 .mypod-head{display:flex;align-items:center;justify-content:space-between;padding:8px 0 18px;border-bottom:1px solid #f0e4ec;margin-bottom:20px}
 .mypod-brand{font-weight:800;font-size:1.35rem;letter-spacing:-.045em;color:#302333}
 .mypod-brand span{color:#d84e92}.mypod-meta{font-size:.85rem;color:#8b7b8b}
@@ -88,26 +101,33 @@ def record(label, path=None, error=None, cover_hint=''):
     st.session_state.results.append({'name':label,'status':'Ready' if enriched.get('cover', False) else 'Ready · no cover', 'detail':detail,'path':str(path)})
 
 def friendly_error(e):
-    """Useful error messages without treating search outages as bad media links."""
+    """Explain root causes without mislabelling a provider/network failure as a bad URL."""
     import requests
-    value=str(e).strip().replace('\n',' ')
+    value=str(e).strip().replace('\\n',' ')
     low=value.lower()
     if isinstance(e, requests.exceptions.SSLError) or any(t in low for t in ('certificate verify', 'ssl certificate', 'tls handshake')):
-        return 'Secure connection failed. Check your Mac date/time, VPN and certificate settings. See Connection diagnostics below.'
+        return 'TLS certificate verification failed. Check network and hosting logs; this is not evidence of an invalid video link.'
     if isinstance(e, requests.exceptions.Timeout) or any(t in low for t in ('timed out', 'timeout')):
-        return 'The provider timed out. Retry in a moment, or try another network.'
+        return 'The source did not respond before the timeout. Retry later; this does not mean the URL is invalid.'
     if isinstance(e, requests.exceptions.ConnectionError) or any(t in low for t in ('name resolution', 'failed to establish', 'network is unreachable', 'connection refused')):
-        return 'Cannot connect to the music provider. Check internet/VPN/DNS and run Connection diagnostics.'
-    if '429' in low or 'rate limit' in low:
-        return 'The catalogue is rate-limiting requests. Try again in a minute.'
-    if '403' in low or 'sign in' in low or 'private' in low:
-        return 'This source is restricted (HTTP 403/private). Try another authorised source.'
-    if 'ffmpeg' in low: return 'Audio conversion failed. Make sure FFmpeg is installed and the audio can be played.'
-    if 'unsupported' in low: return 'Unsupported format. Try MP3, WAV, FLAC, M4A, OGG or AAC.'
-    if 'musicbrainz' in low or 'catalogue' in low or 'itunes' in low:
-        return value[:260]
-    if 'url' in low or 'youtube' in low: return 'Link could not be accessed. Check its address and availability.'
-    return ('Could not process this item: '+value[:200]) if value else 'Unknown error. Retry or see diagnostics.'
+        return 'The server could not reach the source. Check hosting-network access and DNS before retrying.'
+    if 'no space left' in low or 'errno 28' in low:
+        return 'Temporary storage is full. Export saved tracks, free space, and use a smaller batch.'
+    if '429' in low or 'too many requests' in low or 'rate limit' in low:
+        return 'The provider is rate-limiting requests (HTTP 429). Retry after the requested interval, if provided.'
+    if '403' in low or 'forbidden' in low:
+        return 'Source returned HTTP 403. The hosting server may be blocked or the video may require authorisation. A delay will not necessarily help.'
+    if 'sign in' in low or 'private video' in low or 'members-only' in low or 'login required' in low:
+        return 'This video requires a signed-in or authorised account. Use an accessible source you have permission to download.'
+    if '404' in low or 'video unavailable' in low or 'not available' in low:
+        return 'Video unavailable or removed from the source. Check it in your browser.'
+    if 'ffmpeg' in low or 'postprocessing' in low: return 'Audio conversion failed. Check FFmpeg, temporary disk space and the source audio; see Cloud logs for details.'
+    if 'unsupported' in low: return 'Unsupported media format or link. Try an authorised compatible source.'
+    if 'musicbrainz' in low or 'catalogue' in low or 'itunes' in low: return value[:260]
+    if 'youtube' in low or 'url' in low:
+        return 'YouTube could not serve this video to the app. If many valid links fail on Streamlit Cloud, the hosting IP or extractor may be restricted. Check server logs; do not assume the URLs are wrong.'
+    return ('Could not process this item: '+value[:240]) if value else 'Unknown processing error. Inspect server logs.'
+
 
 
 def search_with_backup(mode, query):
@@ -167,7 +187,10 @@ def run_tasks(tasks):
     ready=sum(r['status'].startswith('Ready') for r in st.session_state.results)
     failed=len(tasks)-ready
     if ready: st.success(f'{ready} track(s) ready. Open Your Library to export.'+ (f' {failed} item(s) need attention.' if failed else ''))
-    else: st.error('No tracks were produced. Review the details below and retry with another source.')
+    else:
+        st.error('No tracks were produced. Review the per-track errors below.')
+        if len(tasks) >= 3:
+            st.warning('Every item in this batch failed. On Streamlit Cloud, this can indicate an IP/network restriction or an upstream extractor problem, not  necessarily bad links. Try one authorised source on your Mac to compare. Check Streamlit Cloud logs before retrying a large batch. Adding a fixed delay will not fix HTTP 403.')
 
 def show_results():
     if not st.session_state.results: return
