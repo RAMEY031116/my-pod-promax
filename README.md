@@ -1,1 +1,110 @@
-# my-pod-promax
+# My pod promax
+
+A pink, iPod-inspired music organiser created **by Bipzilla**. Import your own audio files or links you are authorised to download, convert audio to MP3, organise track metadata, and embed available cover art. No account or API key is required.
+
+## 1. What you need
+
+- A Mac, Windows PC, or Linux computer.
+- **Python 3.10 or newer**. On a Mac, install a current Python from [python.org](https://www.python.org/downloads/) if necessary.
+- **FFmpeg** to convert audio. On a Mac with Homebrew, run `brew install ffmpeg`; on Windows, run `winget install Gyan.FFmpeg` and reopen your terminal; on Ubuntu, run `sudo apt install ffmpeg`.
+- Internet access for catalogue searches, permitted links, and online artwork.
+
+Check FFmpeg by running `ffmpeg -version` in a terminal. If it says command not found, install FFmpeg before continuing.
+
+## 2. Install and start on macOS — recommended
+
+1. Download the ZIP and **extract it**. Inside is a folder named exactly **`My pod promax`**.
+2. Open the **Terminal app** or **VS Code → Terminal → New Terminal**.
+3. Drag the extracted **My pod promax** folder from Finder into the Terminal after typing `cd ` (including the space), then press Enter. Alternatively, if it is in Downloads, paste:
+
+   ```bash
+   cd ~/Downloads/"My pod promax"
+   ```
+
+4. Start it with:
+
+   ```bash
+   chmod +x start_mac.sh
+   ./start_mac.sh
+   ```
+
+5. The script creates `.venv`, installs the Python packages and launches Streamlit. Open **http://localhost:8501** if the browser doesn't open automatically.
+6. **Leave Terminal open** while you use the site. Press **Control+C** to stop it. Next time, repeat steps 3–4.
+
+**Important:** Do *not* run `/usr/bin/python3 app.py`. macOS system Python may not have `mutagen`, and launching `app.py` directly isn't the supported way to run Streamlit. The Mac script always uses the correct `.venv` Python.
+
+If your folder is named `My pod promax 2` or similar, either rename it to `My pod promax` in Finder or use the drag-and-drop method in step 3. **If Terminal reports `start_mac.sh: No such file`, run `pwd` and `ls` to confirm that you're inside the folder containing `start_mac.sh`, `app.py` and `requirements.txt`.**
+
+## 3. Start on Windows
+
+1. Extract the ZIP and open PowerShell inside **My pod promax** (the folder containing `app.py`).
+2. Run:
+
+   ```powershell
+   py -m venv .venv
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   .\.venv\Scripts\python.exe -m streamlit run app.py
+   ```
+
+3. Open http://localhost:8501. Press **Ctrl+C** in PowerShell to stop the app.
+
+## 4. Start on Linux
+
+Open a terminal in the extracted **My pod promax** folder, then:
+
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+./.venv/bin/python -m streamlit run app.py
+```
+
+## 5. Use the application
+
+**Import a song or a batch**
+
+1. Open **Import audio / links**.
+2. Paste one or more links (one per line), upload a `.txt` file of links, or upload audio files.
+3. Optionally choose **Preview video information**, then select the songs and edit artist, title or album.
+4. Choose **Process selected songs**. Audio is converted to MP3 and available metadata/artwork is embedded in ID3 tags.
+5. Open **Your library** and download MP3 files individually or prepare a ZIP of the library.
+
+**Discover albums and artists**
+
+1. Open **Discover music** and select **Album** or **Artist**.
+2. Search, choose a result, and for artists click **Browse artist releases**.
+3. Select an album and **Show album tracklist**.
+4. Expand the tracks you want, tick them, and assign your own uploaded audio or authorised links.
+5. Process the selected tracks. Music catalogues provide track names and artwork references, **not commercial audio files**.
+
+**Start another batch:** Click **New batch · keep saved songs**. This clears the current selection without deleting the completed songs in the current session. Download your ZIP before closing the app to preserve your collection.
+
+**Repair missing artwork:** Open **Your library → Fix missing artwork**. Retry cover lookup, use the source thumbnail, or upload JPG/PNG/WebP artwork. If no cover is available, the MP3 is still exportable with other available tags.
+
+## 6. Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `No module named mutagen` | You're using a different Python installation. On Mac run `./start_mac.sh`, not `/usr/bin/python3 app.py`. |
+| `start_mac.sh: No such file` | Run `pwd` and `ls`; enter the *extracted* project folder. Folder names with spaces require quotes. |
+| FFmpeg not found | Install FFmpeg and restart Terminal. Confirm `ffmpeg -version` works. |
+| Artist or album search fails | Check internet, VPN, DNS and the **Connection diagnostics** at the bottom of the app. Retry later if a provider is busy. A backup catalogue is attempted automatically. |
+| No album matches | Try a shorter name or a different spelling; not every release is indexed by both catalogues. |
+| No artwork found | Retry the song's video thumbnail or upload a suitable cover image. You can still export the MP3. |
+| Source unavailable | Some sources prohibit downloading, require sign-in or are geographically restricted. Use an authorised source or your own files. |
+| Port 8501 already in use | Stop the old running app with Ctrl+C, or use the alternative URL Streamlit displays. |
+| Buttons look wrong after updating | Stop the old app, launch from the new folder, and hard-refresh the browser (Mac: Cmd+Shift+R). |
+
+## 7. Notes for open-source users
+
+- MusicBrainz is the primary music catalogue; the public Apple catalogue is a key-free **metadata-only** backup. Apple catalogue artwork is not copied into the MP3s.
+- Cover Art Archive, existing embedded artwork, source thumbnails and manually uploaded covers are used where available and appropriate. Artwork is not guaranteed for every song.
+- Songs are processed in a temporary working directory, so export your music files before ending the session. No permanent hosted library is provided.
+- Download and convert only recordings you have permission to use. Catalogue search does not confer rights to copyrighted tracks.
+- Run the tests with `python -m pip install pytest` followed by `python -m pytest -q` from the project environment.
+
+## What's new in this edition
+
+- Fixed the dark-on-dark buttons with a simpler, consolidated high-contrast pink/white theme.
+- Artist search and artist-release browsing retry the backup catalogue when MusicBrainz fails or has no matches.
+- Search errors distinguish network problems, timeouts, rate limits and empty catalogues; failures don't automatically label the entered artist as invalid.
+- Extracted project folder is named **My pod promax**.
