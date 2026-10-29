@@ -1,8 +1,8 @@
 # My pod promax
 **by Bipzilla** · iPod-inspired music library organiser.
 
-## Current repository status
-This repository is being prepared for the Streamlit application. The complete current app source still needs to be added to this repository before the commands below will work. Do not expect this README alone to launch the app.
+## Repository status
+This branch contains a **lightweight standalone Streamlit edition** of My pod promax (`app.py`, dependencies, launcher and theme). It is **not a byte-for-byte copy** of the larger downloadable project ZIP: advanced catalogue fallback, artwork repair and the original project modules are not included here. The application has not been tested end-to-end on macOS or a phone.
 
 ## Features in the mobile/desktop build
 - Pink-and-white responsive interface with readable high-contrast buttons
@@ -11,7 +11,7 @@ This repository is being prepared for the Streamlit application. The complete cu
 - Convert to MP3, embed available cover artwork and ID3 metadata
 - Export individual MP3s or a ZIP; clear a batch without deleting completed tracks
 
-## Install (after uploading the application source)
+## Install
 Requires Python 3.10+ and FFmpeg.
 
 ### macOS
