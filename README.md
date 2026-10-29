@@ -45,3 +45,15 @@ Run Streamlit on your computer, keep it running, and open the **Network URL** sh
 Primary buttons: pink `#d84e92` with **white** text; hover `#b93274`. Secondary buttons: white with **dark** text `#41283e`. The mobile layout uses smaller margins, a compact hero, horizontally scrollable navigation, and touch-friendly controls.
 
 Music catalogue information does not itself grant access to recordings. Only download audio you have permission to save.
+
+## Troubleshooting: batch conversion and disk space
+If you see `[Errno 28] No space left on device` or FFmpeg conversion failures, **stop the batch** (Ctrl+C) and check free disk space:
+
+```bash
+df -h /
+ffmpeg -version
+```
+
+Free at least 5–10 GB before retrying a big batch. Restart with `./start_mac.sh` from the project directory, process **one** permitted source to verify conversion, then try five songs. Do not repeatedly retry a 100-song batch while storage is low. The app may need extra temporary space for both the source audio and the resulting MP3.
+
+**Do not add an arbitrary delay to fix these errors.** Delays can help only when a remote service explicitly reports rate limiting (HTTP 429); they do not repair disk-full or FFmpeg failures. This edition's batch code has not been modified to add such delays.
