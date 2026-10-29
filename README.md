@@ -333,3 +333,14 @@ To contribute, create a branch and open a pull request describing what changed a
 ---
 
 Made with Python, Streamlit, FFmpeg, yt-dlp, Mutagen and Pillow. **By Bipzilla.**
+
+## Deploying on Streamlit Community Cloud
+
+**Cloud installations are separate from your Mac.** The hosted server needs both Python packages from `requirements.txt` and the Linux FFmpeg executable. This branch includes `packages.txt` at the repository root with the line `ffmpeg`; Streamlit Community Cloud installs system packages listed there when building the app.
+
+1. Push or merge the branch containing `app.py`, `requirements.txt`, `packages.txt`, and `.streamlit/config.toml`.
+2. In Streamlit Community Cloud, open your app settings and ensure the repository and branch point to the updated code; set the main file path to `app.py`.
+3. Reboot/redeploy the app from its management controls to trigger a clean dependency installation if necessary.
+4. Open the app and confirm the **FFmpeg not found** warning has disappeared. If not, inspect the Cloud build logs for package installation failures.
+
+**Storage limitation:** Community Cloud storage is temporary and limited. A large audio batch can fill it even if your Mac has plenty of free space. Export completed songs promptly and use small batches. The app is not persistent online storage, and downloading protected recordings may violate source terms or rights-holder permissions. Do not treat this as an unrestricted public music-download service.
