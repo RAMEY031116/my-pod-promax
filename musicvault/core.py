@@ -275,10 +275,41 @@ def import_youtube(url: str, output: Path, bitrate: int) -> Path:
 
 
 def zip_library(files: list[Path], destination: Path) -> Path:
-    with zipfile.ZipFile(destination, 'w', compression=zipfile.ZIP_STORED, allowZip64=True) as archive:
-        for file in files:
-            if file.is_file():
+    """Export tracks with bounded RAM usage and atomic cleanup on disk errors.
+
+    Stored ZIP entries avoid wasting CPU recompressing MP3s. Export still needs
+    enough disk space for a second copy; warn early instead of leaving a broken ZIP.
+    """
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    sources = [Path(file) for file in files if Path(file).is_file()]
+    if not sources:
+        raise ValueError('There are no music files to export.')
+
+    # ZIP64 metadata and filesystem headroom; never rely on exact file sizes.
+    required = sum(file.stat().st_size for file in sources)
+    required += max(64 * 1024 * 1024, len(sources) * 1024)
+    available = shutil.disk_usage(destination.parent).free
+    if available < required:
+        raise OSError(
+            28,
+            f'Not enough disk storage for library ZIP: approximately '
+            f'{required / (1024 ** 3):.2f} GB needed, '
+            f'{available / (1024 ** 3):.2f} GB free. '
+            'Free some drive space or export songs individually.',
+            str(destination),
+        )
+
+    # Keep an existing successful export intact until replacement succeeds.
+    partial = destination.with_name(destination.name + '.partial')
+    try:
+        with zipfile.ZipFile(partial, 'w', compression=zipfile.ZIP_STORED, allowZip64=True) as archive:
+            for file in sources:
                 archive.write(file, arcname=file.name)
+        partial.replace(destination)
+    except Exception:
+        partial.unlink(missing_ok=True)
+        raise
     return destination
 
 
