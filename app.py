@@ -446,7 +446,20 @@ with library_tab:
         st.divider()
     if available:
         if st.button('Prepare ZIP of all saved tracks'):
-            st.session_state.zip_path=str(zip_library(available,work/'my_Pod_promax_library.zip'))
+            st.session_state.zip_path=None
+            try:
+                with st.spinner('Preparing your music ZIP…'):
+                    st.session_state.zip_path=str(zip_library(available,work/'my_Pod_promax_library.zip'))
+                st.success('Library ZIP is ready to download.')
+            except OSError as exc:
+                if exc.errno == 28:
+                    st.error('Your drive is running out of storage (not RAM). '
+                             'Free disk space or download individual tracks. '
+                             + str(exc))
+                else:
+                    st.error('Could not create the ZIP: '+friendly_error(exc))
+            except Exception as exc:
+                st.error('Could not create the ZIP: '+friendly_error(exc))
         if st.session_state.zip_path and Path(st.session_state.zip_path).exists():
             with open(st.session_state.zip_path,'rb') as handle:
                 st.download_button('Download full MP3 library (ZIP)',handle,file_name='my_Pod_promax_library.zip',mime='application/zip',type='primary')
