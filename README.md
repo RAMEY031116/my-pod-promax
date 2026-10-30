@@ -1,4 +1,86 @@
-# My pod promax
+# 🎵 My pod promax — by Bipzilla
+
+Your pocket music organiser: take **your own audio** or **video links you have permission to save**, make MP3s, organise song names and album art, then download your music for an iPod or other player.
+
+## What does the app do?
+
+```mermaid
+flowchart TD
+ A["🎵 Your audio file or permitted video link"] --> B["🎧 Create MP3 audio"]
+ B --> C["🖼️ Add title, artist, album and cover art"]
+ C --> D["📥 Download your song or a ZIP"]
+ D --> E["📱 Sync with your iPod or music player"]
+```
+
+## Start it from VS Code, CMD, PowerShell or Terminal
+
+**Yes — all of these work.** Open the project folder in VS Code and choose **Terminal → New Terminal**, or open a Windows Command Prompt/PowerShell, Mac Terminal or Linux terminal. The same `app.py` runs everywhere.
+
+### Get the app from GitHub
+
+```bash
+git clone https://github.com/RAMEY031116/my-pod-promax.git
+cd my-pod-promax
+```
+
+You can instead choose **Code → Download ZIP** on GitHub, extract it, and open the extracted folder in your terminal. You need Python 3.10+ and FFmpeg installed separately.
+
+### Easy start for your operating system
+
+| Computer | Run in the project folder |
+|---|---|
+| **Mac / VS Code** | `zsh start_mac.sh` |
+| **Windows Command Prompt** | `start_windows.bat` |
+| **Windows PowerShell / VS Code** | `.\\start_windows.bat` |
+| **Linux / VS Code** | `bash start_linux.sh` |
+
+The launcher creates a project-specific Python environment and installs Python packages. On first run, give it time to finish installation; then open **http://localhost:8501**. Keep the terminal open while using the app. Press **Ctrl+C** to stop.
+
+### Prefer launching app.py directly with Streamlit?
+
+Install the Python requirements once, then run the app using **Streamlit**, not `python app.py`.
+
+**Mac/Linux**:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
+```
+
+**Windows PowerShell or CMD** (no activation needed):
+```powershell
+py -3 -m venv .venv
+.\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt
+.\\.venv\\Scripts\\python.exe -m streamlit run app.py
+```
+
+**FFmpeg:** Mac with Homebrew: `brew install ffmpeg`. Windows with winget: `winget install Gyan.FFmpeg`. Ubuntu/Debian Linux: `sudo apt install ffmpeg`. Restart your terminal and confirm using `ffmpeg -version`.
+
+**Streamlit Cloud:** Deploy `app.py` from this repository; `requirements.txt` installs Python packages and `packages.txt` installs FFmpeg on the hosted Linux server. YouTube may reject downloads from hosted server IPs. The Cloud's storage is separate from your PC.
+
+## Everyday use
+
+1. Search for a musician or album, or import your own audio.
+2. Paste permitted video links or upload audio files.
+3. Check song names, artists and artwork.
+4. Make the MP3 files and download tracks individually or as a ZIP.
+5. Sync the finished files with the iPod's music-management software if you want cover art to appear.
+
+Only use recordings you are allowed to download. Private/restricted videos cannot be guaranteed to work.
+
+## Quick fixes
+
+- **No space left on device:** Free storage and try a small batch. ZIP creation temporarily needs additional space.
+- **FFmpeg not found:** Install FFmpeg for your system and reopen the terminal.
+- **HTTP 403 / blocked IP:** The video provider may be denying the host/network access. Try an authorised local upload. Delays do not bypass restrictions.
+- **Missing artwork on an older iPod:** Check artwork in your music manager, then resync the song. Simply dragging an MP3 into an iPod storage folder may not populate its artwork database.
+- **ModuleNotFoundError:** Use the launcher or install `requirements.txt` using the same Python executable used to run Streamlit.
+
+---
+
+## Additional project notes
+
 
 A pink, iPod-inspired music organiser created **by Bipzilla**. Import your own audio files or links you are authorised to download, convert audio to MP3, organise track metadata, and embed available cover art. No account or API key is required.
 
