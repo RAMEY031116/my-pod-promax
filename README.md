@@ -224,3 +224,10 @@ This does not convert songs to MP3 or sync the iPod. Identification requires net
 The Streamlit homepage now starts with **Paste YouTube song links** and **Upload audio**, followed by the batch processing controls and **Your music library** downloads on the same page. There are no Streamlit tabs for Discover or iPod Organiser. The original audio-conversion and metadata/artwork logic is retained in the web app. The local SSD/iPod organiser remains separate from the website; Smart Fix remains a separate terminal command (`python3 smart_fix_music.py`).
 
 Run the website locally with `bash start_mac.sh` (Mac), `start_windows.bat` (Windows), or `bash start_linux.sh` (Linux). Streamlit Cloud uses the repository's `app.py`. Import songs you own or are authorised to download. The website does not directly sync or edit an iPod.
+
+
+## Hybrid startup restored (October 2026)
+
+The Mac, Linux and Windows start scripts now open the **A/B/C/D/E terminal menu first**, NOT the website. In VS Code on Mac run `bash run_menu_mac.sh`, or `bash start_mac.sh`. Choose A to launch the simplified single-page Streamlit website in your browser; B to create organised copies from a local music folder; C to safely read iPod music and create separate organised copies; D to run Smart Fix with AcoustID credentials and fpcalc; E to exit. The iPod itself is never directly edited. The Streamlit website is just the downloader, uploader, artwork and MP3 export interface.
+
+Note: GitHub B currently makes **separate organised copies** in a new empty destination instead of reorganising the source folder in place. Keep a verified recovery backup before moving, replacing, or syncing music.
