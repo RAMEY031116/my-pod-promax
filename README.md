@@ -190,3 +190,16 @@ python3 -m venv .venv
 - Artist search and artist-release browsing retry the backup catalogue when MusicBrainz fails or has no matches.
 - Search errors distinguish network problems, timeouts, rate limits and empty catalogues; failures don't automatically label the entered artist as invalid.
 - Extracted project folder is named **My pod promax**.
+
+## iPod selection and local Auto-Organise
+
+This new tab works only when My pod promax runs **on your own computer** (Mac, Windows, or Linux). Streamlit Cloud cannot browse connected USB devices or local SSDs.
+
+1. Connect your iPod Classic using USB and make sure it appears as a mounted drive. Open My pod promax locally (use your operating system's launcher or `python -m streamlit run app.py`).
+2. Select the **iPod Organiser** tab.
+3. Choose **Back up from iPod**. Select the correct detected iPod from the dropdown. If it isn't listed, paste the full path to its `iPod_Control/Music` folder. The app does **not** choose a device automatically.
+4. Choose a **new, empty destination folder**, ideally on your external SSD. Click **Copy and verify backup**. Each copied music file is verified with SHA-256 and recorded in `backup_manifest.json`. Keep your iPod and SSD connected until completion.
+5. For organisation, choose **Organise a music folder**, paste the path to your verified backup, and choose a **different new empty** output folder. It copies tracks into Artist/Album folders using the metadata currently in each file. It preserves existing embedded artwork and lists exact duplicate files in `organisation_report.json` without deleting them.
+6. The original music and iPod remain unchanged. Inspect your organised copy before any future sync. This GitHub edition **does not write to your iPod, recognise recordings by fingerprints, or fetch missing artwork**. For optional missing-artwork lookup, the downloadable local edition has a separate best-effort option. Do not press Erase/Sync in Finder until you have a verified backup and understand the sync consequences.
+
+**Limitations:** Automatic organisation currently uses existing embedded tags. Unknown or incorrect tags may remain unorganised or be grouped incorrectly; the app does not claim to have identified every song. Selecting an iPod in this tab will *never* write to it.
