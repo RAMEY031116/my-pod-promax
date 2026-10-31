@@ -217,3 +217,10 @@ A new optional standalone terminal tool `smart_fix_music.py` can identify incorr
 6. Run again and select **3** to edit only approved files in place, optionally rename/move files into Artist/Album directories and fetch missing MP3 cover art.
 
 This does not convert songs to MP3 or sync the iPod. Identification requires network connectivity and is not instant for thousands of songs. Never run this on `iPod_Control`; the tool blocks that folder.
+
+
+## Website redesign: one page, import first (October 2026)
+
+The Streamlit homepage now starts with **Paste YouTube song links** and **Upload audio**, followed by the batch processing controls and **Your music library** downloads on the same page. There are no Streamlit tabs for Discover or iPod Organiser. The original audio-conversion and metadata/artwork logic is retained in the web app. The local SSD/iPod organiser remains separate from the website; Smart Fix remains a separate terminal command (`python3 smart_fix_music.py`).
+
+Run the website locally with `bash start_mac.sh` (Mac), `start_windows.bat` (Windows), or `bash start_linux.sh` (Linux). Streamlit Cloud uses the repository's `app.py`. Import songs you own or are authorised to download. The website does not directly sync or edit an iPod.
