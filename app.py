@@ -32,8 +32,8 @@ h1,h2,h3 {color:#302333!important;letter-spacing:-.04em;}
 .stTabs [aria-selected="true"] {color:#ac296b!important;}
 /* Make all clickable buttons readable, including Streamlit 1.6x and file upload controls. */
 .stApp button, .stApp [role="button"] {color:#45243b!important;-webkit-text-fill-color:#45243b!important;background:#ffffff!important;border:1px solid #d6a8be!important;border-radius:11px!important;opacity:1;}
-.stApp button :is(p,span,div,small), .stApp [role="button"] :is(p,span,div,small) {color:inherit!important;-webkit-text-fill-color:inherit!important;}
-.stApp button svg,.stApp [role="button"] svg {color:inherit!important;stroke:currentColor!important;}
+
+
 .stApp button:hover, .stApp [role="button"]:hover {background:#fff0f7!important;border-color:#c13b7b!important;color:#912c61!important;}
 .stApp button[kind="primary"],.stApp button[data-testid="stBaseButton-primary"],.stApp button[data-testid="baseButton-primary"] {background:#bf3279!important;border-color:#bf3279!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;}
 .stApp button[kind="primary"] :is(p,span,div,small), .stApp button[data-testid="stBaseButton-primary"] :is(p,span,div,small) {color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;}
@@ -51,7 +51,7 @@ h1,h2,h3 {color:#302333!important;letter-spacing:-.04em;}
  [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p,
  [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p,
  [data-testid="stDataFrame"] {color:#302333!important;}
- [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] span {color:#45243b!important;}
+ 
  [data-testid="stTabs"] [role="tab"] {color:#594357!important;}
  [data-testid="stTabs"] [role="tab"][aria-selected="true"] {color:#a62665!important;}
  .stApp button[kind="primary"], .stApp button[data-testid="stBaseButton-primary"] {background:#bf3279!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
@@ -60,7 +60,7 @@ h1,h2,h3 {color:#302333!important;letter-spacing:-.04em;}
 .mypod-head{display:flex;align-items:center;justify-content:space-between;padding:8px 0 18px;border-bottom:1px solid #f0e4ec;margin-bottom:20px}
 .mypod-brand{font-weight:800;font-size:1.35rem;letter-spacing:-.045em;color:#302333}
 .mypod-brand span{color:#d84e92}.mypod-meta{font-size:.85rem;color:#8b7b8b}
-.mypod-hero{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(120deg,#fff4fa,#ffedf5);border:1px solid #f6dce9;border-radius:24px;padding:22px 32px;min-height:180px;margin-bottom:18px}
+.mypod-hero{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(120deg,#fff4fa,#ffedf5);border:1px solid #f6dce9;border-radius:24px;padding:17px 23px;min-height:120px;margin-bottom:12px}
 .mypod-hero h1{margin:3px 0 10px;font-weight:800}.mypod-hero p{max-width:550px;color:#786477;margin:0;font-size:1rem}
 .mypod-kicker{color:#a9306c;font-weight:800;font-size:.76rem;letter-spacing:.13em}
 .mypod-note{border:1px solid #f1e1e9;background:white;padding:14px 16px;border-radius:14px;color:#6e6070;font-size:.90rem;margin:10px 0 16px}
@@ -207,7 +207,7 @@ def cached_cover(group_id: str) -> bytes | None:
 raw= (ROOT/'assets/ipod.svg').read_bytes()
 svg64=base64.b64encode(raw).decode('ascii')
 st.markdown('<div class="mypod-head"><div class="mypod-brand">♫ my <span>Pod</span> promax</div><div class="mypod-meta">curated for your pocket · by Bipzilla</div></div>',unsafe_allow_html=True)
-st.markdown(f'''<div class="mypod-hero"><div><div class="mypod-kicker">YOUR POCKET MUSIC COLLECTION</div><h1>Your music, made simple.</h1><p>Paste YouTube links right here, upload your own audio, add artwork and download MP3s. One simple page.</p><span class="mypod-pill">Made for your music library</span></div><img alt="Pink pocket music player" src="data:image/svg+xml;base64,{svg64}" style="height:176px;max-width:37%;object-fit:contain"/></div>''',unsafe_allow_html=True)
+st.markdown(f'''<div class="mypod-hero"><div><div class="mypod-kicker">YOUR POCKET MUSIC COLLECTION</div><h1>Your music, made simple.</h1><p>Paste YouTube links right here, upload your own audio, add artwork and download MP3s. One simple page.</p><span class="mypod-pill">Made for your music library</span></div><img alt="Pink pocket music player" src="data:image/svg+xml;base64,{svg64}" style="height:100px;max-width:24%;object-fit:contain"/></div>''',unsafe_allow_html=True)
 
 head_left,head_mid,head_right=st.columns([1,1,2])
 head_left.metric('Saved MP3s',len(list(songs.glob('*.mp3'))))
@@ -218,12 +218,12 @@ with head_right:
         reset_batch();st.rerun()
 if not ffmpeg_available(): st.error('FFmpeg not found. Install FFmpeg, restart your terminal, and refresh the page.')
 
-st.markdown('### 1 · Paste links or upload audio')
+st.markdown('### 1 · Add your music')
 st.caption('Paste one or many video links, import a TXT list, or upload audio. Preview and choose which tracks to process.')
 bid=st.session_state.batch_id
 left,right=st.columns([1.2,1])
 with left:
-    links=st.text_area('Paste YouTube song links',height=180,placeholder='Paste links, one per line\nhttps://www.youtube.com/watch?v=...',key='links_text_'+bid)
+    links=st.text_area('Paste YouTube song links',height=125,placeholder='Paste links, one per line\nhttps://www.youtube.com/watch?v=...',key='links_text_'+bid)
     txt=st.file_uploader('Upload a TXT list of links',type=['txt'],key='txt_file_'+bid)
 with right:
     uploads=st.file_uploader('Or upload your audio files',type=['mp3','m4a','wav','flac','ogg','opus','aac'],accept_multiple_files=True,key='bulk_files_'+bid) or []
@@ -273,7 +273,7 @@ if rows:
 else:
     selected=[]
     st.info('Add a YouTube URL, TXT file or audio upload to begin.')
-if st.button('Process selected songs',type='primary',disabled=not ffmpeg_available() or not selected,key='process_'+bid):
+if st.button('♫ Convert to MP3',type='primary',disabled=not ffmpeg_available() or not selected,key='process_'+bid):
     tasks=[]
     upload_map={f.name:f for f in uploads}
     for row in selected:
@@ -300,7 +300,7 @@ show_results()
 
 
 st.divider()
-st.markdown('### 2 · Your music library')
+st.markdown('### 2 · Your music library & downloads')
 available=sorted(songs.glob('*.mp3'),key=lambda p:p.name.lower())
 st.caption(f'{len(available)} MP3 file(s) · Stored in a temporary local workspace until you close or clear the environment. Export your ZIP to keep them.')
 if not available: st.info('Nothing here yet. Discover an album or import your first song.')
