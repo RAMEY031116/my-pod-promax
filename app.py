@@ -207,7 +207,7 @@ def cached_cover(group_id: str) -> bytes | None:
 raw= (ROOT/'assets/ipod.svg').read_bytes()
 svg64=base64.b64encode(raw).decode('ascii')
 st.markdown('<div class="mypod-head"><div class="mypod-brand">♫ my <span>Pod</span> promax</div><div class="mypod-meta">curated for your pocket · by Bipzilla</div></div>',unsafe_allow_html=True)
-st.markdown(f'''<div class="mypod-hero"><div><div class="mypod-kicker">YOUR POCKET MUSIC COLLECTION</div><h1>Make music yours.</h1><p>Find an album. Choose your tracks. Prepare clean MP3s with proper tags and cover artwork, ready for your iPod.</p><span class="mypod-pill">Made for your music library</span></div><img alt="Pink pocket music player" src="data:image/svg+xml;base64,{svg64}" style="height:176px;max-width:37%;object-fit:contain"/></div>''',unsafe_allow_html=True)
+st.markdown(f'''<div class="mypod-hero"><div><div class="mypod-kicker">YOUR POCKET MUSIC COLLECTION</div><h1>Your music, made simple.</h1><p>Paste YouTube links right here, upload your own audio, add artwork and download MP3s. One simple page.</p><span class="mypod-pill">Made for your music library</span></div><img alt="Pink pocket music player" src="data:image/svg+xml;base64,{svg64}" style="height:176px;max-width:37%;object-fit:contain"/></div>''',unsafe_allow_html=True)
 
 head_left,head_mid,head_right=st.columns([1,1,2])
 head_left.metric('Saved MP3s',len(list(songs.glob('*.mp3'))))
@@ -218,310 +218,187 @@ with head_right:
         reset_batch();st.rerun()
 if not ffmpeg_available(): st.error('FFmpeg not found. Install FFmpeg, restart your terminal, and refresh the page.')
 
-find_tab, import_tab, library_tab, manage_tab=st.tabs(['⌕  Discover music','↥  Import audio / links','♫  Your library','♡  iPod Organiser'])
-with find_tab:
-    st.subheader('Find your next record')
-    st.caption('Search albums and artists. MusicBrainz is preferred; an Apple catalogue backup supplies track listings if it is offline. Audio is imported separately.')
-    c1,c2=st.columns([1,3])
-    with c1: mode=st.selectbox('Find by',['Album','Artist'],key='query_type')
-    with c2: query=st.text_input('Album or artist name',key='search_term',placeholder='Try: Discovery or Daft Punk')
-    if st.button('Search catalogue',type='primary',disabled=not query.strip()):
-        with st.spinner('Searching music catalogues…'):
-            found,provider,details=search_with_backup(mode,query.strip())
-        st.session_state.album_results=found if mode=='Album' else []
-        st.session_state.artist_results=found if mode=='Artist' else []
-        st.session_state.artist_releases=[]; st.session_state.album=None;st.session_state.tracks=[]
-        if provider:
-            st.success(f'{len(found)} result(s) from {provider}.')
-            if details:
-                with st.expander('Other catalogue attempts'):
-                    for note in details: st.caption(note)
-        else:
-            st.warning('No results could be loaded. Your search was not necessarily invalid.')
-            for note in details: st.caption('• '+note)
-            st.info('Try a shorter artist name, check Connection diagnostics near the bottom, or import a song using a link or file.')
-    if mode=='Artist' and st.session_state.artist_results:
-        artists=st.session_state.artist_results
-        pick=st.selectbox('Choose artist',range(len(artists)),format_func=lambda i:f"{artists[i]['name']} · {artists[i]['country']} {artists[i]['disambiguation']}")
-        if st.button('Browse artist releases'):
-            with st.spinner('Loading releases…'):
-                releases_found,notes=browse_releases(artists[pick])
-            st.session_state.artist_releases=releases_found
-            if releases_found: st.success(f'{len(releases_found)} releases loaded.')
-            else: st.warning('This artist’s releases could not be loaded. You can still import audio from the Import tab.')
-            with st.expander('Search details',expanded=not bool(releases_found)):
-                for note in notes: st.write('• '+note)
-    releases=st.session_state.artist_releases if mode=='Artist' else st.session_state.album_results
-    if releases:
-        st.markdown('#### Pick a release')
-        pick=st.selectbox('Album / EP / single',range(len(releases)),format_func=lambda i:f"{releases[i]['title']} · {releases[i]['artist']} · {releases[i]['year']} · {releases[i]['kind']}")
-        selection=releases[pick]
-        left,right=st.columns([1,4],vertical_alignment='center')
-        with left:
-            # Missing covers can be frequent. Do not expose remote image errors to the user.
-            art=cached_cover(selection['id'])
-            if art: st.image(art,width='stretch')
-            else: st.caption('No embeddable catalogue cover available — video thumbnails are tried when processing.')
-        with right:
-            st.markdown('### '+selection['title'])
-            st.caption(f"{selection['artist']} · {selection['year']}")
-            if st.button('Show album tracklist',type='primary'):
-                try:
-                    with st.spinner('Loading tracks…'):
-                        details,tracks=(backup_album_tracks(selection['id']) if selection['id'].startswith('itunes:') else album_tracks(selection['id']))
-                    st.session_state.album={**selection,'title':details.get('title',selection['title'])}
-                    st.session_state.tracks=tracks
-                    if not tracks: st.warning('No tracklist was available for this edition. You can still import individual songs.')
-                except Exception as e: st.error('Tracklist unavailable: '+friendly_error(e))
-    album=st.session_state.album
-    if album and st.session_state.tracks:
-        tracks=st.session_state.tracks
-        bid=st.session_state.batch_id
-        st.divider()
-        st.markdown('### '+album['title'])
-        st.caption('Tick the songs you want and attach your own audio or an authorised link. Unassigned tracks will be skipped.')
-        files=st.file_uploader('Upload audio to match to tracks',type=['mp3','m4a','wav','flac','ogg','opus','aac'],accept_multiple_files=True,key='source_files_'+bid) or []
-        assignments=[]
-        for index,track in enumerate(tracks):
-            key=f"{bid}_{album['id']}_{index}"
-            with st.expander(f"{track['disc']}.{track['number']:02d}  {track['title']}   ·   {track['artist']}"):
-                included=st.checkbox('Include this track',key='include_'+key,value=True)
-                method=st.selectbox('Audio source',['Not assigned','Uploaded audio','Authorised YouTube link'],key='source_'+key)
-                selected_file=None;link=''
-                if method=='Uploaded audio':
-                    if files:
-                        fileno=st.selectbox('Match a file',list(range(len(files))),format_func=lambda n:files[n].name,key='album_file_'+key)
-                        selected_file=files[fileno]
-                    else: st.info('Upload files above to match this song.')
-                if method=='Authorised YouTube link': link=st.text_input('Video link',key='track_link_'+key)
-                if included and (selected_file is not None or method=='Authorised YouTube link' and link.strip()):
-                    assignments.append((track,selected_file,link))
-        st.caption(f'{len(assignments)} track(s) with assigned audio')
-        if st.button('Process selected tracks',type='primary',disabled=not assignments or not ffmpeg_available()):
-            cover=cached_cover(album['id'])
-            if not cover: st.info('Album cover not found. I will still process every assigned track and try individual artwork matches.')
-            tasks=[]
-            for track,file,link in assignments:
-                common=dict(title=track['title'],artist=track['artist'],album=album['title'],track=track['number'],disc=track['disc'],cover=cover)
-                if file is not None:
-                    data=file.getvalue();name=file.name
-                    tasks.append((track['title'],lambda data=data,name=name,common=common: import_upload_as_track(data,name,songs,192,**common)))
-                else:
-                    urls,invalid=parse_links(link)
-                    def download(urls=urls,invalid=invalid,common=common):
-                        if len(urls)!=1 or invalid: raise ValueError('Provide one valid authorised YouTube video link.')
-                        return import_youtube_as_track(urls[0],songs,192,**common)
-                    tasks.append((track['title'],download))
-            run_tasks(tasks)
-        show_results()
+st.markdown('### 1 · Paste links or upload audio')
+st.caption('Paste one or many video links, import a TXT list, or upload audio. Preview and choose which tracks to process.')
+bid=st.session_state.batch_id
+left,right=st.columns([1.2,1])
+with left:
+    links=st.text_area('Paste YouTube song links',height=180,placeholder='Paste links, one per line\nhttps://www.youtube.com/watch?v=...',key='links_text_'+bid)
+    txt=st.file_uploader('Upload a TXT list of links',type=['txt'],key='txt_file_'+bid)
+with right:
+    uploads=st.file_uploader('Or upload your audio files',type=['mp3','m4a','wav','flac','ogg','opus','aac'],accept_multiple_files=True,key='bulk_files_'+bid) or []
+    bitrate=st.select_slider('Output quality',options=[128,192,256,320],value=192,format_func=lambda x:f'{x} kbps',key='quality_'+bid)
+    st.caption('Choose your original source quality carefully. Higher encoding bitrates cannot restore lost detail.')
+if txt:
+    try: links+='\n'+txt.getvalue().decode('utf-8-sig')
+    except UnicodeDecodeError: st.warning('TXT file must be UTF-8 encoded. Save it as UTF-8 and try again.')
+urls,invalid=parse_links(links)
+st.caption(f'{len(urls)} unique video links · {len(uploads)} audio uploads · {len(invalid)} invalid entries')
+if invalid:
+    with st.expander(f'Review {len(invalid)} unsupported / invalid link(s)'):
+        for bad in invalid[:40]: st.code(bad)
+if st.button('Preview video information',disabled=not urls,key='preview_'+bid):
+    from yt_dlp import YoutubeDL
+    previews=[]
+    with st.spinner('Reading available song information…'):
+        for url in urls:
+            try:
+                with YoutubeDL({'quiet':True,'no_warnings':True,'skip_download':True,'noplaylist':True,'socket_timeout':15,'retries':1}) as dl:
+                    info=dl.extract_info(url,download=False)
+                title=str(info.get('track') or info.get('title') or 'Untitled')
+                artist=str(info.get('artist') or info.get('creator') or info.get('uploader') or 'Unknown Artist')
+                if not info.get('artist') and ' - ' in title:
+                    artist,title=title.split(' - ',1)
+                previews.append({'url':url,'title':title,'artist':artist,'album':str(info.get('album') or ''),'error':''})
+            except Exception as exc:
+                previews.append({'url':url,'title':'Unknown song','artist':'Unknown Artist','album':'','error':friendly_error(exc)})
+    st.session_state.preview_links=previews
+previous={item['url']:item for item in st.session_state.preview_links}
+rows=[]
+for url in urls:
+    prior=previous.get(url,{})
+    rows.append({'Include':True,'Source':url,'Title':prior.get('title',''),'Artist':prior.get('artist',''),'Album':prior.get('album',''),'Preview issue':prior.get('error','')})
+for upload in uploads:
+    rows.append({'Include':True,'Source':'FILE: '+upload.name,'Title':'','Artist':'','Album':'','Preview issue':''})
+if rows:
+    st.markdown('#### Choose your tracks')
+    st.caption('Uncheck items to skip them. Optionally edit Title, Artist and Album; blank fields use detected information. Preview problems do not stop processing.')
+    edited=st.data_editor(pd.DataFrame(rows),hide_index=True,width='stretch',num_rows='fixed',key='editor_'+bid,
+        column_config={'Include':st.column_config.CheckboxColumn('Select',width='small'),
+                       'Source':st.column_config.TextColumn('Source',disabled=True,width='large'),
+                       'Preview issue':st.column_config.TextColumn('Preview issue',disabled=True)},
+        disabled=['Source','Preview issue'])
+    selected=edited[edited['Include']==True].to_dict('records')
+    st.caption(f'{len(selected)} selected · {len(rows)-len(selected)} skipped')
+else:
+    selected=[]
+    st.info('Add a YouTube URL, TXT file or audio upload to begin.')
+if st.button('Process selected songs',type='primary',disabled=not ffmpeg_available() or not selected,key='process_'+bid):
+    tasks=[]
+    upload_map={f.name:f for f in uploads}
+    for row in selected:
+        source=row['Source']
+        title=str(row.get('Title') or '').strip() if pd.notna(row.get('Title')) else ''
+        artist=str(row.get('Artist') or '').strip() if pd.notna(row.get('Artist')) else ''
+        album_name=str(row.get('Album') or '').strip() if pd.notna(row.get('Album')) else ''
+        def task(source=source,title=title,artist=artist,album_name=album_name):
+            if source.startswith('FILE: '):
+                fname=source[6:]
+                upload=upload_map[fname]
+                result=import_upload(upload.getvalue(),fname,songs,bitrate)
+            else:
+                result=import_youtube(source,songs,bitrate)
+            if title or artist or album_name:
+                known=inspect_mp3(result)
+                embed_custom_metadata(result,title=title or known['title'],artist=artist or known['artist'],album=album_name or known['album'])
+            if not source.startswith('FILE: '):
+                st.session_state.source_urls[str(result)]=source
+            return result
+        tasks.append((source,task))
+    run_tasks(tasks)
+show_results()
 
-with import_tab:
-    st.subheader('Import your music')
-    st.caption('Paste one or many video links, import a TXT list, or upload audio. Preview and choose which tracks to process.')
-    bid=st.session_state.batch_id
-    left,right=st.columns([1.2,1])
-    with left:
-        links=st.text_area('Paste YouTube song links',height=180,placeholder='Paste links, one per line\nhttps://www.youtube.com/watch?v=...',key='links_text_'+bid)
-        txt=st.file_uploader('Upload a TXT list of links',type=['txt'],key='txt_file_'+bid)
-    with right:
-        uploads=st.file_uploader('Or upload your audio files',type=['mp3','m4a','wav','flac','ogg','opus','aac'],accept_multiple_files=True,key='bulk_files_'+bid) or []
-        bitrate=st.select_slider('Output quality',options=[128,192,256,320],value=192,format_func=lambda x:f'{x} kbps',key='quality_'+bid)
-        st.caption('Choose your original source quality carefully. Higher encoding bitrates cannot restore lost detail.')
-    if txt:
-        try: links+='\n'+txt.getvalue().decode('utf-8-sig')
-        except UnicodeDecodeError: st.warning('TXT file must be UTF-8 encoded. Save it as UTF-8 and try again.')
-    urls,invalid=parse_links(links)
-    st.caption(f'{len(urls)} unique video links · {len(uploads)} audio uploads · {len(invalid)} invalid entries')
-    if invalid:
-        with st.expander(f'Review {len(invalid)} unsupported / invalid link(s)'):
-            for bad in invalid[:40]: st.code(bad)
-    if st.button('Preview video information',disabled=not urls,key='preview_'+bid):
-        from yt_dlp import YoutubeDL
-        previews=[]
-        with st.spinner('Reading available song information…'):
-            for url in urls:
-                try:
-                    with YoutubeDL({'quiet':True,'no_warnings':True,'skip_download':True,'noplaylist':True,'socket_timeout':15,'retries':1}) as dl:
-                        info=dl.extract_info(url,download=False)
-                    title=str(info.get('track') or info.get('title') or 'Untitled')
-                    artist=str(info.get('artist') or info.get('creator') or info.get('uploader') or 'Unknown Artist')
-                    if not info.get('artist') and ' - ' in title:
-                        artist,title=title.split(' - ',1)
-                    previews.append({'url':url,'title':title,'artist':artist,'album':str(info.get('album') or ''),'error':''})
-                except Exception as exc:
-                    previews.append({'url':url,'title':'Unknown song','artist':'Unknown Artist','album':'','error':friendly_error(exc)})
-        st.session_state.preview_links=previews
-    previous={item['url']:item for item in st.session_state.preview_links}
-    rows=[]
-    for url in urls:
-        prior=previous.get(url,{})
-        rows.append({'Include':True,'Source':url,'Title':prior.get('title',''),'Artist':prior.get('artist',''),'Album':prior.get('album',''),'Preview issue':prior.get('error','')})
-    for upload in uploads:
-        rows.append({'Include':True,'Source':'FILE: '+upload.name,'Title':'','Artist':'','Album':'','Preview issue':''})
-    if rows:
-        st.markdown('#### Choose your tracks')
-        st.caption('Uncheck items to skip them. Optionally edit Title, Artist and Album; blank fields use detected information. Preview problems do not stop processing.')
-        edited=st.data_editor(pd.DataFrame(rows),hide_index=True,width='stretch',num_rows='fixed',key='editor_'+bid,
-            column_config={'Include':st.column_config.CheckboxColumn('Select',width='small'),
-                           'Source':st.column_config.TextColumn('Source',disabled=True,width='large'),
-                           'Preview issue':st.column_config.TextColumn('Preview issue',disabled=True)},
-            disabled=['Source','Preview issue'])
-        selected=edited[edited['Include']==True].to_dict('records')
-        st.caption(f'{len(selected)} selected · {len(rows)-len(selected)} skipped')
-    else:
-        selected=[]
-        st.info('Add a YouTube URL, TXT file or audio upload to begin.')
-    if st.button('Process selected songs',type='primary',disabled=not ffmpeg_available() or not selected,key='process_'+bid):
-        tasks=[]
-        upload_map={f.name:f for f in uploads}
-        for row in selected:
-            source=row['Source']
-            title=str(row.get('Title') or '').strip() if pd.notna(row.get('Title')) else ''
-            artist=str(row.get('Artist') or '').strip() if pd.notna(row.get('Artist')) else ''
-            album_name=str(row.get('Album') or '').strip() if pd.notna(row.get('Album')) else ''
-            def task(source=source,title=title,artist=artist,album_name=album_name):
-                if source.startswith('FILE: '):
-                    fname=source[6:]
-                    upload=upload_map[fname]
-                    result=import_upload(upload.getvalue(),fname,songs,bitrate)
-                else:
-                    result=import_youtube(source,songs,bitrate)
-                if title or artist or album_name:
-                    known=inspect_mp3(result)
-                    embed_custom_metadata(result,title=title or known['title'],artist=artist or known['artist'],album=album_name or known['album'])
-                if not source.startswith('FILE: '):
-                    st.session_state.source_urls[str(result)]=source
-                return result
-            tasks.append((source,task))
-        run_tasks(tasks)
-    show_results()
 
-with library_tab:
-    st.subheader('Your iPod-ready music')
-    available=sorted(songs.glob('*.mp3'),key=lambda p:p.name.lower())
-    st.caption(f'{len(available)} MP3 file(s) · Stored in a temporary local workspace until you close or clear the environment. Export your ZIP to keep them.')
-    if not available: st.info('Nothing here yet. Discover an album or import your first song.')
-    st.caption('Cover art is embedded directly into each MP3. Missing artwork? Repair a track below without downloading its audio again.')
-    for idx,path in enumerate(available):
-        try: tags=inspect_mp3(path)
-        except Exception: tags={'artist':'Unknown Artist','title':path.stem,'album':'','cover':False}
-        art=get_embedded_art(path)
-        iconcol,a,b=st.columns([0.65,5,1.2],vertical_alignment='center')
-        with iconcol:
-            if art: st.image(art,width=56)
-            else: st.markdown('🎵')
-        with a:
-            st.markdown(f"**{tags['title']}**")
-            st.caption(tags['artist']+((' · '+tags['album']) if tags['album'] else '')+(' · Artwork ✓' if tags['cover'] else ' · Cover unavailable'))
-        with b:
-            with open(path,'rb') as handle:
-                st.download_button('Download',handle,file_name=path.name,mime='audio/mpeg',key='dl_'+str(idx))
-        if True:
-            with st.expander(('Fix missing artwork · ' if not tags['cover'] else 'Replace artwork · ')+tags['title']):
-                st.caption('Retry album artwork, use a YouTube video thumbnail, or upload a cover. Changes are embedded in the MP3; download the updated file afterwards.')
-                custom_title=st.text_input('Track title',value=tags['title'],key=f'art_title_{idx}')
-                custom_artist=st.text_input('Artist',value=tags['artist'],key=f'art_artist_{idx}')
-                art_file=st.file_uploader('Upload cover image',type=['jpg','jpeg','png','webp'],key=f'art_file_{idx}')
-                art_video=st.text_input('YouTube video URL for thumbnail (optional)',placeholder='https://www.youtube.com/watch?v=...',key=f'art_video_{idx}')
-                remembered=st.session_state.source_urls.get(str(path))
-                if remembered and not tags['cover'] and st.button('Retry source thumbnail automatically',key=f'auto_art_{idx}'):
-                    from musicvault.core import best_youtube_art
-                    with st.spinner('Checking direct YouTube thumbnail URLs…'):
-                        cover=best_youtube_art({},remembered)
-                    if cover:
-                        write_tags(path,custom_title,custom_artist,cover,tags['album'])
-                        st.success('Thumbnail embedded in MP3. Download the refreshed file.');st.rerun()
-                    else:
-                        st.warning('Direct thumbnails were unavailable. Check whether your Mac can access i.ytimg.com, or upload an image.')
-                a1,a2=st.columns(2)
-                with a1:
-                    if st.button('Search for artwork',key=f'retry_art_{idx}'):
-                        try:
-                            from musicvault.catalog import find_track_art
-                            with st.spinner('Looking for a matching album cover…'):
-                                found, reason=find_track_art(custom_title,custom_artist)
-                            if found:
-                                write_tags(path,custom_title,custom_artist,found,tags['album'])
-                                st.success('Cover embedded in MP3.');st.rerun()
-                            else: st.warning(reason+' You can still export the MP3.')
-                        except Exception as exc: st.warning('Could not search for artwork: '+friendly_error(exc))
-                if st.button('Use video thumbnail',key=f'thumbnail_fix_{idx}',disabled=not art_video.strip()):
+st.divider()
+st.markdown('### 2 · Your music library')
+available=sorted(songs.glob('*.mp3'),key=lambda p:p.name.lower())
+st.caption(f'{len(available)} MP3 file(s) · Stored in a temporary local workspace until you close or clear the environment. Export your ZIP to keep them.')
+if not available: st.info('Nothing here yet. Discover an album or import your first song.')
+st.caption('Cover art is embedded directly into each MP3. Missing artwork? Repair a track below without downloading its audio again.')
+for idx,path in enumerate(available):
+    try: tags=inspect_mp3(path)
+    except Exception: tags={'artist':'Unknown Artist','title':path.stem,'album':'','cover':False}
+    art=get_embedded_art(path)
+    iconcol,a,b=st.columns([0.65,5,1.2],vertical_alignment='center')
+    with iconcol:
+        if art: st.image(art,width=56)
+        else: st.markdown('🎵')
+    with a:
+        st.markdown(f"**{tags['title']}**")
+        st.caption(tags['artist']+((' · '+tags['album']) if tags['album'] else '')+(' · Artwork ✓' if tags['cover'] else ' · Cover unavailable'))
+    with b:
+        with open(path,'rb') as handle:
+            st.download_button('Download',handle,file_name=path.name,mime='audio/mpeg',key='dl_'+str(idx))
+    if True:
+        with st.expander(('Fix missing artwork · ' if not tags['cover'] else 'Replace artwork · ')+tags['title']):
+            st.caption('Retry album artwork, use a YouTube video thumbnail, or upload a cover. Changes are embedded in the MP3; download the updated file afterwards.')
+            custom_title=st.text_input('Track title',value=tags['title'],key=f'art_title_{idx}')
+            custom_artist=st.text_input('Artist',value=tags['artist'],key=f'art_artist_{idx}')
+            art_file=st.file_uploader('Upload cover image',type=['jpg','jpeg','png','webp'],key=f'art_file_{idx}')
+            art_video=st.text_input('YouTube video URL for thumbnail (optional)',placeholder='https://www.youtube.com/watch?v=...',key=f'art_video_{idx}')
+            remembered=st.session_state.source_urls.get(str(path))
+            if remembered and not tags['cover'] and st.button('Retry source thumbnail automatically',key=f'auto_art_{idx}'):
+                from musicvault.core import best_youtube_art
+                with st.spinner('Checking direct YouTube thumbnail URLs…'):
+                    cover=best_youtube_art({},remembered)
+                if cover:
+                    write_tags(path,custom_title,custom_artist,cover,tags['album'])
+                    st.success('Thumbnail embedded in MP3. Download the refreshed file.');st.rerun()
+                else:
+                    st.warning('Direct thumbnails were unavailable. Check whether your Mac can access i.ytimg.com, or upload an image.')
+            a1,a2=st.columns(2)
+            with a1:
+                if st.button('Search for artwork',key=f'retry_art_{idx}'):
                     try:
-                        from yt_dlp import YoutubeDL
-                        from musicvault.core import best_youtube_art
-                        urls, bad=parse_links(art_video.strip())
-                        if not urls: st.warning('Enter one valid YouTube video URL.')
-                        else:
-                            with st.spinner('Checking video artwork…'):
-                                cover=best_youtube_art({},urls[0])
-                            if cover:
-                                write_tags(path,custom_title,custom_artist,cover,tags['album'])
-                                st.success('Video artwork embedded into MP3.');st.rerun()
-                            else: st.warning('YouTube did not supply a usable thumbnail. Try uploading a JPG or PNG.')
-                    except Exception as exc: st.warning('Thumbnail lookup failed: '+friendly_error(exc))
-                with a2:
-                    if st.button('Save artwork & details',key=f'save_art_{idx}',disabled=not art_file):
-                        art=as_jpeg(art_file.getvalue()) if art_file else None
-                        if art:
-                            write_tags(path,custom_title,custom_artist,art,tags['album'])
-                            st.success('Artwork embedded in MP3.');st.rerun()
-                        else: st.error('This image could not be read. Try JPG or PNG.')
-        st.divider()
-    if available:
-        if st.button('Prepare ZIP of all saved tracks'):
-            st.session_state.zip_path=str(zip_library(available,work/'my_Pod_promax_library.zip'))
-        if st.session_state.zip_path and Path(st.session_state.zip_path).exists():
-            with open(st.session_state.zip_path,'rb') as handle:
-                st.download_button('Download full MP3 library (ZIP)',handle,file_name='my_Pod_promax_library.zip',mime='application/zip',type='primary')
-    if st.button('Delete all saved tracks',disabled=not available):
-        shutil.rmtree(songs,ignore_errors=True);songs.mkdir(parents=True,exist_ok=True)
-        st.session_state.zip_path=None
-        st.rerun()
+                        from musicvault.catalog import find_track_art
+                        with st.spinner('Looking for a matching album cover…'):
+                            found, reason=find_track_art(custom_title,custom_artist)
+                        if found:
+                            write_tags(path,custom_title,custom_artist,found,tags['album'])
+                            st.success('Cover embedded in MP3.');st.rerun()
+                        else: st.warning(reason+' You can still export the MP3.')
+                    except Exception as exc: st.warning('Could not search for artwork: '+friendly_error(exc))
+            if st.button('Use video thumbnail',key=f'thumbnail_fix_{idx}',disabled=not art_video.strip()):
+                try:
+                    from yt_dlp import YoutubeDL
+                    from musicvault.core import best_youtube_art
+                    urls, bad=parse_links(art_video.strip())
+                    if not urls: st.warning('Enter one valid YouTube video URL.')
+                    else:
+                        with st.spinner('Checking video artwork…'):
+                            cover=best_youtube_art({},urls[0])
+                        if cover:
+                            write_tags(path,custom_title,custom_artist,cover,tags['album'])
+                            st.success('Video artwork embedded into MP3.');st.rerun()
+                        else: st.warning('YouTube did not supply a usable thumbnail. Try uploading a JPG or PNG.')
+                except Exception as exc: st.warning('Thumbnail lookup failed: '+friendly_error(exc))
+            with a2:
+                if st.button('Save artwork & details',key=f'save_art_{idx}',disabled=not art_file):
+                    art=as_jpeg(art_file.getvalue()) if art_file else None
+                    if art:
+                        write_tags(path,custom_title,custom_artist,art,tags['album'])
+                        st.success('Artwork embedded in MP3.');st.rerun()
+                    else: st.error('This image could not be read. Try JPG or PNG.')
+    st.divider()
+if available:
+    if st.button('Prepare ZIP of all saved tracks'):
+        st.session_state.zip_path=str(zip_library(available,work/'my_Pod_promax_library.zip'))
+    if st.session_state.zip_path and Path(st.session_state.zip_path).exists():
+        with open(st.session_state.zip_path,'rb') as handle:
+            st.download_button('Download full MP3 library (ZIP)',handle,file_name='my_Pod_promax_library.zip',mime='application/zip',type='primary')
+if st.button('Delete all saved tracks',disabled=not available):
+    shutil.rmtree(songs,ignore_errors=True);songs.mkdir(parents=True,exist_ok=True)
+    st.session_state.zip_path=None
+    st.rerun()
 
 st.markdown('<div class="mypod-note"><b>About audio:</b> Album/artist discovery supplies track names and cover art, not the recordings themselves. Import audio you own or have permission to download. Missing cover art will never prevent the MP3 from being exported.</div>',unsafe_allow_html=True)
 
 st.caption('my Pod promax · by Bipzilla · Personal music organiser')
 
 with st.expander('Connection diagnostics · search or covers not loading?'):
-    st.caption('Checks are optional and report the actual host and error rather than hiding network failures.')
-    if st.button('Test catalogue and thumbnail connections'):
-        import requests
-        endpoints={'MusicBrainz':'https://musicbrainz.org/ws/2/artist/?query=Central%20Cee&fmt=json&limit=1',
-                   'Backup catalogue':'https://itunes.apple.com/search?term=Central+Cee&entity=musicArtist&limit=1',
-                   'YouTube thumbnails':'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
-                   'Cover Art Archive':'https://coverartarchive.org/release-group/0b213a5a-4c75-35c3-a60b-8ac16319acfc/front-500'}
-        for label,url in endpoints.items():
-            try:
-                r=requests.get(url,timeout=10,headers={'User-Agent':'myPodPromax/0.8 (personal music metadata)'},stream=True)
-                st.write(f'{label}: HTTP {r.status_code} · '+('reachable' if r.ok else 'not available (some covers legitimately return 404)'))
-                r.close()
-            except Exception as exc: st.error(f'{label}: {type(exc).__name__}: {str(exc)[:220]}')
+st.caption('Checks are optional and report the actual host and error rather than hiding network failures.')
+if st.button('Test catalogue and thumbnail connections'):
+    import requests
+    endpoints={'MusicBrainz':'https://musicbrainz.org/ws/2/artist/?query=Central%20Cee&fmt=json&limit=1',
+               'Backup catalogue':'https://itunes.apple.com/search?term=Central+Cee&entity=musicArtist&limit=1',
+               'YouTube thumbnails':'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+               'Cover Art Archive':'https://coverartarchive.org/release-group/0b213a5a-4c75-35c3-a60b-8ac16319acfc/front-500'}
+    for label,url in endpoints.items():
+        try:
+            r=requests.get(url,timeout=10,headers={'User-Agent':'myPodPromax/0.8 (personal music metadata)'},stream=True)
+            st.write(f'{label}: HTTP {r.status_code} · '+('reachable' if r.ok else 'not available (some covers legitimately return 404)'))
+            r.close()
+        except Exception as exc: st.error(f'{label}: {type(exc).__name__}: {str(exc)[:220]}')
 
-with manage_tab:
-    from musicvault.organizer import devices, scan, backup, organise
-    st.subheader('iPod & Library Organiser')
-    st.caption('Local computer only. Choose the correct iPod yourself. No files on your iPod are changed.')
-    mode=st.radio('What would you like to do?', ['Back up from iPod', 'Organise a music folder', 'Convert or download music'])
-    if mode=='Convert or download music':
-        st.info('Go to the Import audio / links tab to download permitted sources or convert your own audio.')
-    else:
-        found=devices()
-        labels=['Paste my folder path']+[f"{d['name']} — {d['music']}" for d in found]
-        selected=st.selectbox('Choose your connected iPod',labels)
-        default=found[labels.index(selected)-1]['music'] if labels.index(selected)>0 else ''
-        source=st.text_input('Source music folder (can be on external SSD)',value=default)
-        destination=st.text_input('NEW empty destination folder',placeholder='/Volumes/Plex_SSD/My pod promax New Library')
-        if source.strip():
-            try:st.info(f'{len(scan(source))} compatible music files found.')
-            except Exception as exc:st.warning(f'Cannot scan folder: {exc}')
-        if st.button('Copy and verify backup' if mode=='Back up from iPod' else 'Create organised music library',type='primary'):
-            try:
-                with st.spinner('Working on separate copies; please keep devices connected.'):
-                    if mode=='Back up from iPod':
-                        count=backup(source,destination)
-                        st.success(f'Backed up and verified {count} songs; original iPod unchanged.')
-                    else:
-                        count,dupes=organise(source,destination)
-                        st.success(f'Copied {count} songs into Artist/Album folders. {dupes} exact duplicates flagged in report.')
-                        st.info('Existing cover artwork is preserved. This GitHub version does not identify missing covers yet; use the local ZIP edition for optional best-effort artwork lookup.')
-            except Exception as exc:st.error(f'Operation stopped: {exc}')
+
+st.caption('The local SSD/iPod organiser and Smart Fix are separate terminal tools. This website only converts and prepares MP3s; syncing is done with a compatible music manager.')
