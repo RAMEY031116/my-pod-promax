@@ -203,3 +203,17 @@ This new tab works only when My pod promax runs **on your own computer** (Mac, W
 6. The original music and iPod remain unchanged. Inspect your organised copy before any future sync. This GitHub edition **does not write to your iPod, recognise recordings by fingerprints, or fetch missing artwork**. For optional missing-artwork lookup, the downloadable local edition has a separate best-effort option. Do not press Erase/Sync in Finder until you have a verified backup and understand the sync consequences.
 
 **Limitations:** Automatic organisation currently uses existing embedded tags. Unknown or incorrect tags may remain unorganised or be grouped incorrectly; the app does not claim to have identified every song. Selecting an iPod in this tab will *never* write to it.
+
+
+## Smart Identify & Fix — minimal-storage local music repair
+
+A new optional standalone terminal tool `smart_fix_music.py` can identify incorrect/unknown songs using their actual audio fingerprints through AcoustID, suggest proper titles/artists/albums, and embed missing MP3 cover art after review. It runs on an existing folder on your Mac/SSD; it does not make another copy of your entire library or modify the iPod directly.
+
+1. Keep the **Before-MyPod** backup. Run `brew install chromaprint` on Mac for the small `fpcalc` fingerprint executable (Windows/Linux: install Chromaprint fpcalc). Existing Python requirements already include mutagen, requests, Pillow.
+2. Get an **AcoustID application API key** from https://acoustid.org/new-application . Do not commit the key to GitHub.
+3. Open a terminal in this repo and run `python3 smart_fix_music.py`. Point it at `/Volumes/Plex_SSD/ipod_songs` (or your actual folder).
+4. Choose **1** for missing/unknown metadata (fastest) or **2** to include songs with wrong existing tags; start with 20–50 files. This creates **.mypod-smart-fix-plan.json** in the music folder, without modifying songs.
+5. Review the suggested matches carefully in the JSON file and change `"approved": false` to `"approved": true` only for correct matches. A fingerprint may match the wrong edition, remix, or album.
+6. Run again and select **3** to edit only approved files in place, optionally rename/move files into Artist/Album directories and fetch missing MP3 cover art.
+
+This does not convert songs to MP3 or sync the iPod. Identification requires network connectivity and is not instant for thousands of songs. Never run this on `iPod_Control`; the tool blocks that folder.
