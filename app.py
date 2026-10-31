@@ -218,7 +218,7 @@ with head_right:
         reset_batch();st.rerun()
 if not ffmpeg_available(): st.error('FFmpeg not found. Install FFmpeg, restart your terminal, and refresh the page.')
 
-find_tab, import_tab, library_tab=st.tabs(['⌕  Discover music','↥  Import audio / links','♫  Your library'])
+find_tab, import_tab, library_tab, manage_tab=st.tabs(['⌕  Discover music','↥  Import audio / links','♫  Your library','♡  iPod Organiser'])
 with find_tab:
     st.subheader('Find your next record')
     st.caption('Search albums and artists. MusicBrainz is preferred; an Apple catalogue backup supplies track listings if it is offline. Audio is imported separately.')
@@ -496,3 +496,32 @@ with st.expander('Connection diagnostics · search or covers not loading?'):
                 st.write(f'{label}: HTTP {r.status_code} · '+('reachable' if r.ok else 'not available (some covers legitimately return 404)'))
                 r.close()
             except Exception as exc: st.error(f'{label}: {type(exc).__name__}: {str(exc)[:220]}')
+
+with manage_tab:
+    from musicvault.organizer import devices, scan, backup, organise
+    st.subheader('iPod & Library Organiser')
+    st.caption('Local computer only. Choose the correct iPod yourself. No files on your iPod are changed.')
+    mode=st.radio('What would you like to do?', ['Back up from iPod', 'Organise a music folder', 'Convert or download music'])
+    if mode=='Convert or download music':
+        st.info('Go to the Import audio / links tab to download permitted sources or convert your own audio.')
+    else:
+        found=devices()
+        labels=['Paste my folder path']+[f"{d['name']} — {d['music']}" for d in found]
+        selected=st.selectbox('Choose your connected iPod',labels)
+        default=found[labels.index(selected)-1]['music'] if labels.index(selected)>0 else ''
+        source=st.text_input('Source music folder (can be on external SSD)',value=default)
+        destination=st.text_input('NEW empty destination folder',placeholder='/Volumes/Plex_SSD/My pod promax New Library')
+        if source.strip():
+            try:st.info(f'{len(scan(source))} compatible music files found.')
+            except Exception as exc:st.warning(f'Cannot scan folder: {exc}')
+        if st.button('Copy and verify backup' if mode=='Back up from iPod' else 'Create organised music library',type='primary'):
+            try:
+                with st.spinner('Working on separate copies; please keep devices connected.'):
+                    if mode=='Back up from iPod':
+                        count=backup(source,destination)
+                        st.success(f'Backed up and verified {count} songs; original iPod unchanged.')
+                    else:
+                        count,dupes=organise(source,destination)
+                        st.success(f'Copied {count} songs into Artist/Album folders. {dupes} exact duplicates flagged in report.')
+                        st.info('Existing cover artwork is preserved. This GitHub version does not identify missing covers yet; use the local ZIP edition for optional best-effort artwork lookup.')
+            except Exception as exc:st.error(f'Operation stopped: {exc}')
